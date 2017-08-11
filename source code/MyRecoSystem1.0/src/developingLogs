@@ -1,0 +1,48 @@
+α：
+	实现了基本的评分预测，（相似用户的）均值预测，相似度使用cosine相似度
+β:
+	加入相似item的评估预测
+β0.2：
+	改进了item的group方式，增加了缓存机制
+β0.3：
+	删除不必要的代码，
+	选择优化的的评分方法
+	更换有真实值的test文件
+	添加统计信息函数
+	问题：内存被挤爆，需要优化载入策略！
+RecomSystem0.1:
+	1.修改ItemAttribute的存储方式，优先载入itemAttribute，存入特制二维数组（由于attribute都是二维的，横纵坐标表示attribute的值
+	位置上存放item的ID）(<--)
+	计算发现attribute共有624951种值约为63万个，一个1B的话也要630M，两个attribute至少1.3G，几乎已经超出了我的计算机的处理范围，因此我需要
+	更换一下思路，部分载入或者缩减数据规模，毕竟这么大的数据并不是都有用的，比如属性除以100也完全可以接受，此时数据量就变成了63MB
+	2.修改工作流程，得到需要评分的item时才载入特定区域的ItemAttribute，每次载入500个放在一个bucket中
+	若bucket中有一次被投中则将权重加1；一共设计了6个bucket，当6个bucket中的元素没有我们想要的元素时需要继续载入新的bucket
+	但桶已满，因此需要替换，替换规则为替换使用次数最少的一个bucket（即权重最小的），然后全部bucket的权重归零(√)
+	3.载入ItemAttribute后根据attribute1和attribute2的值在特制数组中找到该元素，然后可以在其周围半径为300的区域内搜索其他
+	元素，只要总个数达到k值（如10个）则停止搜索，直到半径达到10为止，那么这些搜索到的元素一定是和我们的item距离最近的元素（这是由于
+	我们的特制的数组决定的），这样就不用逐个载入所有元素了
+	4.试图不再使用冗余数据ItemVector，由于UserVector已经存储了足够的数据，若再载入ItemVector会再用重复空间，而目的只是为了
+	获取一个Item的average score,很滑稽，我们试图每次给评分的时候考虑用户的平均评分加用户对类似物品的平均评分来决定，
+	不再使用item的平均评分这个数据
+	5.综上，可以省掉大概50%的空间，提高运行效率
+	======================================
+	整体思路介绍：
+	首先从train文件中读入user的历史数据，存入users中；
+	从ItemAttribute文件中逐个读入item的Attribute信息，存入ItemAttributeMatrix中，用于后期收集近似项用
+	接下来做预测工作：
+	从test中读入一个用户的预测包，包含userid和itemID，
+	其中，通过userid可以在users中找到相似的用户，得到相似用户的（1）平均评分；
+	读入user的一个item，首先查看itemTruck中是否有该item，若没有则从itemAttribute文件中读入相应item的Attribute值，放入itemTruck中
+	然后根据item的Attribute1和Attribute2在itemattributeMatrix中搜索得到相似item，
+	然后搜索用户是否有买过这些item，若有则（2）得到相似item的得分，加入score的计算中
+RecomSystem0.3:
+	1)由于jvm的默认虚拟内存只有64M，因此前几次的实验其实都是无用的，因为们可以在eclipse中做如下设置：
+	选中被运行的类，点击菜单‘run->run configruration’，选择(x)=Argument标签页下的vm arguments框里
+	输入 -Xmx800m, 保存运行。对每个project单独设置
+	对于jar包，可以在执行前添加一条命令：java -Xms800m -Xmx800m myapp.jar
+	2)根据实验发现，从硬盘上现读入数据很慢而且不稳定，因为我发现即使是ItemAttribute中也不是包含了所有物品
+	3）恢复Itemlist，加快搜索速度
+RecomSystem1.0
+	修改上一版本的错误的RMSE的计算方式，先分别将real和result的用户读进来然后分别在内存中统计
+	增加UI界面
+	*如果闲得无聊的话可以尝试添加选项，实现基本推荐和添加item信息的推荐

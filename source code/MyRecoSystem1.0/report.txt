@@ -1,0 +1,5 @@
+1.user number£º19835
+2.itmes number: 507172
+3.scored items number: 424683
+4.training time: 79719 ms
+5.RMSE(Root Mean Square Error) value: 18.904057359974093
